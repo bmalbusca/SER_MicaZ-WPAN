@@ -63,7 +63,7 @@
 #define Vout 		(random_rand() % (basic_vout))
 
 static struct simple_udp_connection unicast_connection;
-
+static int temp=0;
 /*---------------------------------------------------------------------------*/
 PROCESS(unicast_sender_process, "Unicast sender example process");
 AUTOSTART_PROCESSES(&unicast_sender_process);
@@ -80,14 +80,14 @@ receiver(struct simple_udp_connection *c,
   printf("Data received on port %d from port %d with length %d\n",
          receiver_port, sender_port, datalen);
 }*/
-double read_temp(double Ro, double To_Ro double Beta){
- 
-    double variance =  (basic_vout + Vout);
-    double aux_Wbridge = ((double)(variance)/(double)VCC) + (double)(R2/(double)(R2+R1));
-    double Rt = R3* aux_Wbridge /(1+ aux_Wbridge);
-    
-    return  (float)((1/((1/(double)To_Ro) + log(Rt/(double)Ro)/(double)Beta)) - 273.15);    // Temperature in Celsius
-
+static int
+temperature(void)
+{
+      double variance =  (basic_vout + Vout);
+      double aux_Wbridge = ((double)(variance)/(double)VCC) + (double)(R2/(double)(R2+R1));
+      double Rt = R3* aux_Wbridge /(1+ aux_Wbridge);
+     return  (int)((1/((1/(double)TO))) + (((Rt/(double)RTO)/(double)BETA) - 273.15));//  log(rt/ro) Temperature in Celsius
+      
 
 }
 /*---------------------------------------------------------------------------*/
@@ -118,6 +118,9 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   static struct etimer periodic_timer;
   static struct etimer send_timer;
   uip_ipaddr_t *addr;
+  
+
+        
 
   PROCESS_BEGIN();
 
@@ -144,8 +147,10 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       printf("Sending unicast to ");
       uip_debug_ipaddr_print(addr);
       printf("\n");
-
-      message_number = (int)read_temp(RTO,TO,BETA);
+      
+ 
+      message_number = temperature();
+      
       sprintf(buf, "%d", message_number);
       //message_number++;
       simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
