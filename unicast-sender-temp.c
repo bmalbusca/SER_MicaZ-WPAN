@@ -59,11 +59,17 @@
 
 #define SEND_INTERVAL		(60 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
-#define basic_vout		3
-#define Vout 		(random_rand() % (basic_vout))
+
+#define base_VOUT		3
+#define VOUT 		(random_rand() % (basic_vout))
+
+#define RATE 1.2
+#define MAXTEMP_VARI 70
+#define MINTEMP 20
 
 static struct simple_udp_connection unicast_connection;
-static int temp=0;
+static int temp_idx=0;
+
 /*---------------------------------------------------------------------------*/
 PROCESS(unicast_sender_process, "Unicast sender example process");
 AUTOSTART_PROCESSES(&unicast_sender_process);
@@ -83,11 +89,22 @@ receiver(struct simple_udp_connection *c,
 static int
 temperature(void)
 {
-      double variance =  (basic_vout + Vout);
+      /*
+
+      double variance =  (base_VOUT + VOUT);
       double aux_Wbridge = ((double)(variance)/(double)VCC) + (double)(R2/(double)(R2+R1));
       double Rt = R3* aux_Wbridge /(1+ aux_Wbridge);
-     return  (int)((1/((1/(double)TO))) + (((Rt/(double)RTO)/(double)BETA) - 273.15));//  log(rt/ro) Temperature in Celsius
+      return  (int)((1/((1/(double)TO))) + (((Rt/(double)RTO)/(double)BETA) - 273.15));//  log(rt/ro) Temperature in Celsius
       
+      */
+  if(temp_idx >= MAXTEMP_VARI){
+    temp_idx =0;
+  }
+  else{
+    ++temp_idx;
+  }
+
+  return  temp_idx* rate + MINTEMP;
 
 }
 /*---------------------------------------------------------------------------*/
