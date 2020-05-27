@@ -37,22 +37,30 @@
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-debug.h"
-
 #include "sys/node-id.h"
 
 #include "simple-udp.h"
 #include "servreg-hack.h"
-
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
+
+#define VCC 5
+#define R1 3300
+#define R2 3300
+#define R3 3000
+#define BETA 3380
+#define RTO 10000
+#define TO 293.15 
+
 
 #define UDP_PORT 1234
 #define SERVICE_ID 190
 
 #define SEND_INTERVAL		(60 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
-#define basic_temp		20
-#define temperature 		(random_rand() % (basic_temp))
+#define basic_vout		3
+#define Vout 		(random_rand() % (basic_vout))
 
 static struct simple_udp_connection unicast_connection;
 
@@ -60,7 +68,7 @@ static struct simple_udp_connection unicast_connection;
 PROCESS(unicast_sender_process, "Unicast sender example process");
 AUTOSTART_PROCESSES(&unicast_sender_process);
 /*---------------------------------------------------------------------------*/
-static void
+/*static void
 receiver(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
@@ -71,6 +79,16 @@ receiver(struct simple_udp_connection *c,
 {
   printf("Data received on port %d from port %d with length %d\n",
          receiver_port, sender_port, datalen);
+}*/
+double read_temp(double Ro, double To_Ro double Beta){
+ 
+    double variance =  (basic_vout + Vout);
+    double aux_Wbridge = ((double)(variance)/(double)VCC) + (double)(R2/(double)(R2+R1));
+    double Rt = R3* aux_Wbridge /(1+ aux_Wbridge);
+    
+    return  (float)((1/((1/(double)To_Ro) + log(Rt/(double)Ro)/(double)Beta)) - 273.15);    // Temperature in Celsius
+
+
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -127,7 +145,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       uip_debug_ipaddr_print(addr);
       printf("\n");
 
-      message_number = temperature +20;
+      message_number = (int)read_temp(RTO,TO,BETA);
       sprintf(buf, "%d", message_number);
       //message_number++;
       simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
