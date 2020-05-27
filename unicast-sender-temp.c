@@ -124,10 +124,10 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   servreg_hack_init();
 
   set_global_address();
-
+/*
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
-
+*/
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
 
