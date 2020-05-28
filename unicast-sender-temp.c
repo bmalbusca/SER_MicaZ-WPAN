@@ -57,7 +57,7 @@
 #define UDP_PORT 1234
 #define SERVICE_ID 190
 
-#define SEND_INTERVAL		(60 * CLOCK_SECOND)
+#define SEND_INTERVAL		(20 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 #define base_VOUT		3
@@ -68,13 +68,15 @@
 #define MINTEMP 20
 
 static struct simple_udp_connection unicast_connection;
+
+
 static int temp_idx=0;
 
 /*---------------------------------------------------------------------------*/
 PROCESS(unicast_sender_process, "Unicast sender example process");
 AUTOSTART_PROCESSES(&unicast_sender_process);
 /*---------------------------------------------------------------------------*/
-/*static void
+static void
 receiver(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
@@ -83,9 +85,10 @@ receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  printf("Data received on port %d from port %d with length %d\n",
-         receiver_port, sender_port, datalen);
-}*/
+    printf("Received ACK ");
+    uip_debug_ipaddr_print(sender_addr);
+    printf("\n");
+}
 static int
 temperature(void)
 {
@@ -104,7 +107,7 @@ temperature(void)
     ++temp_idx;
   }
 
-  return  temp_idx* rate + MINTEMP;
+  return  temp_idx* RATE + MINTEMP;
 
 }
 /*---------------------------------------------------------------------------*/
@@ -135,8 +138,6 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   static struct etimer periodic_timer;
   static struct etimer send_timer;
   uip_ipaddr_t *addr;
-  
-
         
 
   PROCESS_BEGIN();
@@ -144,10 +145,10 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   servreg_hack_init();
 
   set_global_address();
-/*
+
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
-*/
+
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
 
@@ -167,6 +168,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       
  
       message_number = temperature();
+      //printf("send temp %i \n",message_number);
       
       sprintf(buf, "%d", message_number);
       //message_number++;

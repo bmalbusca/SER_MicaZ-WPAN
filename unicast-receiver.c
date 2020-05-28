@@ -37,7 +37,6 @@
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-debug.h"
-#include "dev/leds.h"
 
 #include "simple-udp.h"
 #include "servreg-hack.h"
@@ -48,16 +47,21 @@
 #include <string.h>
 
 #define UDP_PORT 1234
+#define UDP_PORT_BC 1000
 #define SERVICE_ID 190
 
-#define SEND_INTERVAL		(10 * CLOCK_SECOND)
+#define SEND_INTERVAL		(60 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 static struct simple_udp_connection unicast_connection;
+static struct simple_udp_connection broadcast_connection;
 
 /*---------------------------------------------------------------------------*/
-PROCESS(unicast_receiver_process, "Unicast receiver example process");
-AUTOSTART_PROCESSES(&unicast_receiver_process);
+PROCESS(unicast_receiver_process, "Unicast receiver process ");
+PROCESS(broadcast_example_process, "UDP broadcast process");
+AUTOSTART_PROCESSES(&unicast_receiver_process,&broadcast_example_process);
+
+
 /*---------------------------------------------------------------------------*/
 static void
 receiver(struct simple_udp_connection *c,
@@ -68,18 +72,26 @@ receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-	uint8_t temp = 0;
-  printf("Data received from ");
+  printf("Data received  from node ");
   uip_debug_ipaddr_print(sender_addr);
-  printf(" on port %d from port %d with length %d: Temperature: '%s'\n",
+  printf(" on port %d from port %d with length %d: '%s'\n",
          receiver_port, sender_port, datalen, data);
-
-	temp = atoi(data);
-printf(" temp %d \n", temp);
-	if( temp <30){
-	leds_toggle(LEDS_GREEN);
+  simple_udp_sendto(&unicast_connection, "ACK", 4, sender_addr);
 }
-	
+
+static void
+receiver_bc(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
+  printf("Data received from on port %d from port %d rec=",
+         receiver_port, sender_port);
+  uip_debug_ipaddr_print(sender_addr);
+  printf("\n");
 }
 /*---------------------------------------------------------------------------*/
 static uip_ipaddr_t *
@@ -149,3 +161,29 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+PROCESS_THREAD(broadcast_example_process, ev, data)
+{
+  static struct etimer periodic_timer;
+  static struct etimer send_timer;
+  uip_ipaddr_t addr;
+
+  PROCESS_BEGIN();
+
+  simple_udp_register(&broadcast_connection, UDP_PORT_BC,
+                      NULL, UDP_PORT_BC,
+                      receiver_bc);
+
+  etimer_set(&periodic_timer, SEND_INTERVAL);
+  while(1) {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    etimer_reset(&periodic_timer);
+    etimer_set(&send_timer, SEND_TIME);
+
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
+    printf("Sending broadcast to sync\n");
+    uip_create_linklocal_allnodes_mcast(&addr);
+    simple_udp_sendto(&broadcast_connection, "Hey", 4, &addr);
+  }
+
+  PROCESS_END();
+}
