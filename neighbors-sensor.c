@@ -293,9 +293,9 @@ PROCESS_THREAD(unicast_process, ev, data)
       for(i = 0; i < randneighbor; i++) {
         n = list_item_next(n);
       }
-      printf("sending unicast to %d.%d\n", n->addr.u8[0], n->addr.u8[1]);
+      printf("sending unicast to %d\n", n->addr.u8[0]);
 
-      
+      msg.temp = 20;
       msg.type = UNICAST_TYPE_PING;
       packetbuf_copyfrom(&msg, sizeof(msg));
       unicast_send(&unicast, &n->addr);
