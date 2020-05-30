@@ -67,9 +67,12 @@
 #define MAXTEMP_VARI 70
 #define MINTEMP 20
 
+#define NTRY 5
 static struct simple_udp_connection unicast_connection;
 
 
+volatile uip_ipaddr_t *rsync_addr = NULL;
+static int message =0; 
 static int temp_idx=0;
 
 /*---------------------------------------------------------------------------*/
@@ -85,20 +88,21 @@ receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-    printf("Received ACK ");
+    printf("Received ACK from");
     uip_debug_ipaddr_print(sender_addr);
-    printf("\n");
+    printf("addr sender%p \n",sender_addr);
+   
+    rsync_addr = sender_addr;
+    --message;
 }
 static int
 temperature(void)
 {
       /*
-
       double variance =  (base_VOUT + VOUT);
       double aux_Wbridge = ((double)(variance)/(double)VCC) + (double)(R2/(double)(R2+R1));
       double Rt = R3* aux_Wbridge /(1+ aux_Wbridge);
-      return  (int)((1/((1/(double)TO))) + (((Rt/(double)RTO)/(double)BETA) - 273.15));//  log(rt/ro) Temperature in Celsius
-      
+      return  (int)((1/((1/(double)TO))) + (((Rt/(double)RTO)/(double)BETA) - 273.15));//  log(rt/ro) Temperature in Celsius      
       */
   if(temp_idx >= MAXTEMP_VARI){
     temp_idx =0;
@@ -149,7 +153,9 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
 
-  etimer_set(&periodic_timer, SEND_INTERVAL);
+ 
+    etimer_set(&periodic_timer, SEND_INTERVAL);
+  
   while(1) {
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
@@ -157,7 +163,18 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
     etimer_set(&send_timer, SEND_TIME);
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
-    addr = servreg_hack_lookup(SERVICE_ID);
+
+    //printf("addr rsync=%p ; addr=%p \n", rsync_addr);
+    if(rsync_addr == NULL){
+      addr = servreg_hack_lookup(SERVICE_ID);
+    }
+    else{
+      addr = rsync_addr;
+      printf("addr rsync=%p ; addr=%p \n", rsync_addr, addr);
+    }
+
+    
+    
     if(addr != NULL) {
       static unsigned int message_number;
       char buf[20];
@@ -170,8 +187,8 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       message_number = temperature();
       //printf("send temp %i \n",message_number);
       
+      ++message;
       sprintf(buf, "%d", message_number);
-      //message_number++;
       simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
     } else {
       printf("Service %d not found\n", SERVICE_ID);
