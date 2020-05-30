@@ -89,7 +89,7 @@ struct neighbor {
   /* The ->addr field holds the Rime address of the neighbor. */
   linkaddr_t addr;
 
-
+  struct ctimer ctimer;
   /* Each broadcast packet contains a sequence number (seqno). The
      ->last_seqno field holds the last sequenuce number we saw from
      this neighbor. */
@@ -100,6 +100,7 @@ struct neighbor {
 
 /* This #define defines the maximum amount of neighbors we can remember. */
 #define MAX_NEIGHBORS 16
+#define NEIGHBOR_TIMEOUT 60 * CLOCK_SECOND
 
 /* This MEMB() definition defines a memory pool from which we allocate
    neighbor entries. */
@@ -117,6 +118,21 @@ static struct unicast_conn unicast;
    broadcast sequence number gaps. */
 #define SEQNO_EWMA_UNITY 0x100
 #define SEQNO_EWMA_ALPHA 0x040
+
+/*---------------------------------------------------------------------------*/
+/*
+ * This function is called by the ctimer present in each neighbor
+ * table entry. The function removes the neighbor from the table
+ * because it has become too old.
+ */
+static void
+remove_neighbor(void *n)
+{
+  struct neighbor *e = n;
+  printf("removed node %d from the list\n", e->addr);
+  list_remove(neighbors_list, e);
+  memb_free(&neighbors_memb, e);
+}
 
 /*---------------------------------------------------------------------------*/
 /* We first declare our two processes. */
@@ -147,6 +163,8 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
        the address of the neighbor from which we received this
        broadcast message. */
     if(linkaddr_cmp(&n->addr, from)) {
+      /* Our neighbor was found, so we update the timeout. */
+      ctimer_set(&n->ctimer, NEIGHBOR_TIMEOUT, remove_neighbor, n);
       break;
     }
   }
@@ -167,6 +185,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     /* Initialize the fields. */
     linkaddr_copy(&n->addr, from);
     n->last_seqno = m->seqno - 1;
+    ctimer_set(&n->ctimer, NEIGHBOR_TIMEOUT, remove_neighbor, n);
    
 
     /* Place the neighbor on the neighbor list. */
