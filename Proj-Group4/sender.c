@@ -63,7 +63,7 @@ struct neighbor {
 
 /* This #define defines the maximum amount of neighbors we can remember. */
 #define MAX_NEIGHBORS 16
-#define NEIGHBOR_TIMEOUT 60 * CLOCK_SECOND
+#define NEIGHBOR_TIMEOUT 90 * CLOCK_SECOND
 
 /* This MEMB() definition defines a memory pool from which we allocate
    neighbor entries. */
